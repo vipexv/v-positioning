@@ -54,7 +54,7 @@ PositionThread = function()
         local distance = #(clonedPedCoords - cachedCoords)
 
         if distance > Config.MaxDistance and cachedCoords then
-            Debug("Max distance reached.")
+            Notify("Max distance exceeded.")
             ClearPedTasksImmediately(Script.State.clonedPed)
             SetEntityAlpha(Script.State.clonedPed, 255, false)
             FreezeEntityPosition(Script.State.clonedPed, false)

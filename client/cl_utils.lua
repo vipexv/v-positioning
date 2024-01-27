@@ -29,3 +29,10 @@ function ShowFloatingText(coords, msg)
     BeginTextCommandDisplayHelp('floatingTextNotification')
     EndTextCommandDisplayHelp(2, false, false, -1)
 end
+
+-- Feel free to edit this to actually use your notification system, for now it jut prints it to the console.
+Notify = function(text)
+    BeginTextCommandThefeedPost("STRING")
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandThefeedPostTicker(false, true)
+end
