@@ -26,18 +26,9 @@ jobs:
         with:
           node-version: 16.x
 
-      - name: Install dependencies
-        run: cd web && npm install
-
       # - name: Bump package version
       #   run: npm version ${{ github.ref_name }}
       #   working-directory: web
-
-      - name: Run build
-        run: npm run build
-        working-directory: web
-        env:
-          CI: false
 
       # - name: Bump manifest version
       #   run: node .github/actions/bump-manifest-version.js
@@ -61,12 +52,11 @@ jobs:
       - name: Bundle files
         run: |
           ls
-          mkdir -p ./temp/vReports
-          mkdir -p ./temp/vReports/web/
-          cp ./{LICENSE,README.md,fxmanifest.lua,config.lua,sv_config.lua} ./temp/vReports
-          cp -r ./{client,locales,server,shared} ./temp/vReports
-          cp -r ./web/dist ./temp/vReports/web/
-          cd ./temp && zip -r ../vReports.zip ./vReports
+          mkdir -p ./temp/v-positioning
+          mkdir -p ./temp/v-positioning/web/
+          cp ./{LICENSE,README.md,fxmanifest.lua,config.lua} ./temp/v-positioning
+          cp -r ./{client,server,shared} ./temp/v-positioning
+          cd ./temp && zip -r ../v-positioning.zip ./v-positioning
 
       - name: Create Release
         uses: 'marvinpinto/action-automatic-releases@v1.2.1'
@@ -75,7 +65,7 @@ jobs:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
           title: ${{ env.RELEASE_VERSION }}
           prerelease: false
-          files: vReports.zip
+          files: v-positioning.zip
 
         env:
           CI: false
