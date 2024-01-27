@@ -1,5 +1,9 @@
 ---@param data CoordData
 RegisterNetEvent("positioning:client:entity:pos", function(serverId, data)
+    local srcId = GetPlayerServerId(PlayerId())
+
+    if tonumber(srcId) == tonumber(serverId) then return Debug("Not updating coords for src.") end
+
     local playerId = GetPlayerFromServerId(serverId)
     local playerPed = GetPlayerPed(playerId)
     local coords = data.coords
