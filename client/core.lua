@@ -5,6 +5,20 @@ Script = {
         clonedPed = nil
     }
 }
+
+CONTROLS = {
+    backspace = 194,
+    prev = 188,
+    exit = 194,
+}
+
+local keysTable = {
+    { 'Exit',   194 },
+    { 'Rotate', 140 },
+    { 'Up',     44 },
+    { 'Down',   38 },
+}
+
 -- Function to end the positioning thread
 EndThread = function()
     EnableAllControlActions(0)
@@ -14,7 +28,7 @@ EndThread = function()
     local aboveGround, groundZ = GetGroundZAndNormalFor_3dCoord(cloneCoords.x, cloneCoords.y, cloneCoords.z)
 
     if not aboveGround and cachedCoords then
-        Debug("(ERROR) Attempted to teleport below the map.")
+        Notify("(ERROR) Attempted to teleport below the map.")
         SetEntityAlpha(Script.State.clonedPed, 255, false)
         FreezeEntityPosition(Script.State.clonedPed, false)
         SetEntityCoordsNoOffset(PlayerPedId(), cachedCoords.x, cachedCoords.y, cachedCoords.z, true, false, false)
@@ -38,6 +52,9 @@ end
 PositionThread = function()
     while Script.State.isPositioning do
         DisableControlActions()
+
+        local scaleForm = MakeInstructionalScaleform(keysTable)
+        DrawScaleformMovieFullscreen(scaleForm, 255, 255, 255, 255, 0)
 
         local clonedPed = Script.State.clonedPed
         if not clonedPed or not DoesEntityExist(clonedPed) then
