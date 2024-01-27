@@ -19,6 +19,7 @@ local keysTable = {
     { 'Down',   38 },
 }
 
+
 -- Function to end the positioning thread
 EndThread = function()
     EnableAllControlActions(0)
