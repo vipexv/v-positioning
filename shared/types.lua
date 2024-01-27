@@ -1,4 +1,3 @@
----@class Example
----@field exampleParam table
----@field exampleParam2 string
----@field exampleParam3 number
+---@class CoordData
+---@field coords vector3
+---@field heading number

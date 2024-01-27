@@ -1,96 +1,165 @@
 Script = {
     State = {
         isPositioning = false,
+        cachedCoords = nil,
         clonedPed = nil
     }
 }
+-- Function to end the positioning thread
+EndThread = function()
+    EnableAllControlActions(0)
+    Script.State.isPositioning = false
+    local cachedCoords = Script.State.cachedCoords
+    local cloneCoords = GetEntityCoords(Script.State.clonedPed)
+    local aboveGround, groundZ = GetGroundZAndNormalFor_3dCoord(cloneCoords.x, cloneCoords.y, cloneCoords.z)
 
-local PositionThread = function()
+    if not aboveGround and cachedCoords then
+        Debug("(ERROR) Attempted to teleport below the map.")
+        SetEntityAlpha(Script.State.clonedPed, 255, false)
+        FreezeEntityPosition(Script.State.clonedPed, false)
+        SetEntityCoordsNoOffset(PlayerPedId(), cachedCoords.x, cachedCoords.y, cachedCoords.z, true, false, false)
+        return
+    end
+
+    SetEntityAlpha(Script.State.clonedPed, 255, false)
+    FreezeEntityPosition(Script.State.clonedPed, false)
+    SetEntityCoordsNoOffset(PlayerPedId(), cloneCoords.x, cloneCoords.y, cloneCoords.z, true, false, false)
+
+
+    local data = {
+        coords = cloneCoords,
+        heading = GetEntityHeading(Script.State.clonedPed)
+    }
+
+    TriggerServerEvent("positioning:server:entity:pos", PlayerPedId(), data)
+end
+
+-- Function to handle positioning logic
+PositionThread = function()
     while Script.State.isPositioning do
-        DisableControlAction(0, 30, true)
-        DisableControlAction(0, 31, true)
-        DisableControlAction(0, 32, true)
-        DisableControlAction(0, 33, true)
-        DisableControlAction(0, 34, true)
-        DisableControlAction(0, 35, true)
-        DisableControlAction(0, 38, true)
-        DisableControlAction(0, 45, true)
+        DisableControlActions()
 
         local clonedPed = Script.State.clonedPed
-
-        if not clonedPed then return end
-
-        if not DoesEntityExist(clonedPed) then
+        if not clonedPed or not DoesEntityExist(clonedPed) then
             Debug("Cloned PED doesn't exist.")
             return
         end
 
-        local forwardVector = GetEntityForwardVector(clonedPed)
+        local forwardVector, rightVector = CalculateMovementVectors(clonedPed)
 
-        local movementSpeed = 0.1
+        HandleControlInputs(clonedPed, forwardVector, rightVector)
 
-        local upVector = vec3(0, 0, 1)
+        local clonedPedCoords = GetEntityCoords(clonedPed)
+        local cachedCoords = Script.State.cachedCoords
+        local distance = #(clonedPedCoords - cachedCoords)
 
-        local rightVector = vec3(
-            forwardVector.y * upVector.z - forwardVector.z * upVector.y,
-            forwardVector.z * upVector.x - forwardVector.x * upVector.z,
-            forwardVector.x * upVector.y - forwardVector.y * upVector.x
-        )
-
-        if IsDisabledControlPressed(0, 32) then -- W key
-            local newPos = GetEntityCoords(clonedPed) + forwardVector * movementSpeed
-            SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, true, true)
-        end
-
-        if IsDisabledControlPressed(0, 33) then -- S key
-            local newPos = GetEntityCoords(clonedPed) - forwardVector * movementSpeed
-            SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, true, true)
-        end
-
-        if IsDisabledControlPressed(0, 34) then -- A key
-            local newPos = GetEntityCoords(clonedPed) - rightVector * movementSpeed
-            SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, true, true)
-        end
-
-        if IsDisabledControlPressed(0, 35) then -- D key
-            local newPos = GetEntityCoords(clonedPed) + rightVector * movementSpeed
-            SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, true, true)
-        end
-
-        if IsDisabledControlPressed(0, 38) then                  -- E key
-            local newHeading = GetEntityHeading(clonedPed) + 2.0 -- Adjust rotation speed as needed
-            SetEntityHeading(clonedPed, newHeading)
-        end
-
-        if IsDisabledControlPressed(0, 45) then                  -- R key
-            local newHeading = GetEntityHeading(clonedPed) - 2.0 -- Adjust rotation speed as needed
-            SetEntityHeading(clonedPed, newHeading)
+        if distance > Config.MaxDistance and cachedCoords then
+            Debug("Max distance reached.")
+            ClearPedTasksImmediately(Script.State.clonedPed)
+            SetEntityAlpha(Script.State.clonedPed, 255, false)
+            FreezeEntityPosition(Script.State.clonedPed, false)
+            SetEntityCoords(Script.State.clonedPed, cachedCoords.x, cachedCoords.y, cachedCoords.z, true, false, false,
+                false)
+            Script.State.isPositioning = false
         end
 
         Wait(0)
     end
 end
 
+-- Function to disable control actions
+DisableControlActions = function()
+    local disabledActions = { 23, 24, 25, 30, 31, 32, 33, 34, 35, 38, 44, 45, 140, 176 }
+    for _, action in ipairs(disabledActions) do
+        DisableControlAction(0, action, true)
+    end
+end
+
+-- Function to calculate movement vectors
+CalculateMovementVectors = function(clonedPed)
+    local forwardVector = GetEntityForwardVector(clonedPed)
+    local upVector = vec3(0, 0, 1)
+    local rightVector = vec3(
+        forwardVector.y * upVector.z - forwardVector.z * upVector.y,
+        forwardVector.z * upVector.x - forwardVector.x * upVector.z,
+        forwardVector.x * upVector.y - forwardVector.y * upVector.x
+    )
+    return forwardVector, rightVector
+end
+
+-- Function to handle control inputs
+HandleControlInputs = function(clonedPed, forwardVector, rightVector)
+    local movementSpeed = 0.1
+
+    -- Handle W key
+    if IsDisabledControlPressed(0, 32) then
+        local newPos = GetEntityCoords(clonedPed) + forwardVector * movementSpeed
+        SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, false, false)
+    end
+
+    -- Handle S key
+    if IsDisabledControlPressed(0, 33) then
+        local newPos = GetEntityCoords(clonedPed) - forwardVector * movementSpeed
+        SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, false, false)
+    end
+
+    -- Handle A key
+    if IsDisabledControlPressed(0, 34) then
+        local newPos = GetEntityCoords(clonedPed) - rightVector * movementSpeed
+        SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, false, false)
+    end
+
+    -- Handle D key
+    if IsDisabledControlPressed(0, 35) then
+        local newPos = GetEntityCoords(clonedPed) + rightVector * movementSpeed
+        SetEntityCoordsNoOffset(clonedPed, newPos.x, newPos.y, newPos.z, true, false, false)
+    end
+
+    -- Handle E key
+    if IsDisabledControlPressed(0, 38) then
+        local currPos = GetEntityCoords(clonedPed)
+        SetEntityCoordsNoOffset(clonedPed, currPos.x, currPos.y, currPos.z + 0.2, true, false, false)
+    end
+
+    -- Handle Q key
+    if IsDisabledControlPressed(0, 44) then
+        local currPos = GetEntityCoords(clonedPed)
+        SetEntityCoordsNoOffset(clonedPed, currPos.x, currPos.y, currPos.z - 0.2, true, false, false)
+    end
+
+    -- Handle R key
+    if IsDisabledControlPressed(0, 45) then
+        local newHeading = GetEntityHeading(clonedPed) - 2.0
+        SetEntityHeading(clonedPed, newHeading)
+    end
+
+    -- Handle Enter key
+    if IsDisabledControlPressed(0, 176) then
+        EndThread()
+    end
+end
+
+-- Function to move the ped
+MovePed = function(ped, direction, speed)
+    local newPos = GetEntityCoords(ped) + direction * speed
+    SetEntityCoordsNoOffset(ped, newPos.x, newPos.y, newPos.z, true, false, false)
+end
+
+-- Function to toggle positioning mode
 TogglePositioningMode = function()
     if Script.State.isPositioning then
-        EnableAllControlActions(0)
-        Script.State.isPositioning = false
-        DeleteEntity(Script.State.clonedPed)
-        return Debug("Player is already in the positioning mode.")
+        return EndThread()
     end
 
     Script.State.isPositioning = true
     local srcPedId = PlayerPedId()
     local srcPedCoords = GetEntityCoords(srcPedId)
 
-    local clonedPed = ClonePed(srcPedId, false, true, true)
-    Script.State.clonedPed = clonedPed
+    Script.State.clonedPed = srcPedId
+    Script.State.cachedCoords = srcPedCoords
 
-
-    SetEntityAlpha(clonedPed, 150, false)
-    SetBlockingOfNonTemporaryEvents(clonedPed, true)
-    SetPedFleeAttributes(clonedPed, 0, false)
-    SetEntityCoords(clonedPed, srcPedCoords.x, srcPedCoords.y, srcPedCoords.z, true, false, false, false)
+    SetEntityAlpha(srcPedId, 150, false)
+    FreezeEntityPosition(srcPedId, true)
 
     CreateThread(PositionThread)
 end
