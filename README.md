@@ -1,4 +1,4 @@
-## Positioning Script for Emotes.
+## Standalone Positioning Script for Emotes.
 
 **[Script Information]**
 
